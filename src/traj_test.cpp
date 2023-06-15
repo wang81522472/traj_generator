@@ -18,12 +18,6 @@
 using namespace Eigen;
 using namespace std;
 
-#define mean_speed 1.0
-
-#define change_yaw 1
-
-#define follow_yaw_speed_limit 0.00
-
 ros::Publisher traj_pub;
 
 ros::Publisher position_cmd_pub;
@@ -42,9 +36,16 @@ double traj_start_time= -1.0;
 bool is_init= 0;
 bool is_traj= 0;
 
+double hover_yaw = 0.0;
+
+bool follow_yaw = false;
+double mean_speed = 1.0;
+double last_yaw_cmd = 0.0;
+
+Vector3d end_pos = Vector3d::Zero();
+
 VectorXd uav_state= VectorXd::Zero(11);
 VectorXd uav_t = VectorXd::Zero(1);
-VectorXd uav_plan_t = VectorXd::Zero(1);
 MatrixXd uav_coef;
 
 void traj_viz(){
@@ -125,8 +126,6 @@ void generate_traj(geometry_msgs::PoseArray& msg){
     Time.resize(msg.poses.size());
     uav_t.resize(msg.poses.size()+1);
 
-    uav_plan_t.resize(msg.poses.size()+1);
-
     Path(0,0) = uav_state(0);
     Path(0,1) = uav_state(1);
     Path(0,2) = uav_state(2);
@@ -150,7 +149,7 @@ void generate_traj(geometry_msgs::PoseArray& msg){
 
         Time(i) = ((Path.row(i+1) - Path.row(i)).transpose().norm()) / mean_speed;
 
-	if(i == 0 || i == msg.poses.size()-1) Time(i) *= 1.5;
+        if(i == 0 || i == msg.poses.size()-1) Time(i) *= 1.5;
 
         uav_t(i+1) = uav_t(i) + Time(i);
     }
@@ -202,48 +201,71 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
 
             bool traj_ok=false;
 
-            for (int i = 1; i < uav_t.size(); i++) {
-                if (dT < uav_t(i)) {
+            if(dT < uav_t(0)){
+                ROS_ERROR("time before traj!");
+                return;
+            }
+            else if(dT >= uav_t(uav_t.rows()-1)){
+                
+                des_x = end_pos.x();
+                des_y = end_pos.y();
+                des_z = end_pos.z();
+                des_yaw = last_yaw_cmd;
 
-                	double tt = dT - uav_t(i - 1);
+                traj_ok = false;
+                is_traj = false;
+            }            
+            else{
+                for (int i = 1; i < uav_t.rows(); i++) {
+                    if (dT < uav_t(i)) {
 
-                    Matrix<double, 1, 6> t_p;
-                    t_p << 1, tt, pow(tt, 2), pow(tt, 3), pow(tt, 4), pow(tt, 5);
-                    Matrix<double, 1, 6> t_v;
-                    t_v << 0, 1, 2 * tt, 3 * pow(tt, 2), 4 * pow(tt, 3), 5 * pow(tt, 4);
-					Matrix<double, 1, 6> t_a;
-			    	t_a << 0, 0, 2, 6 * tt, 12 * pow(tt,2), 20*pow(tt,3);
-                            
-                    VectorXd coef_x;
-                    VectorXd coef_y;
-                    VectorXd coef_z;
-                    
-                    coef_x = (uav_coef.block(i-1, 0, 1, 6)).transpose();
-                    coef_y = (uav_coef.block(i-1, 6, 1, 6)).transpose();
-                    coef_z = (uav_coef.block(i-1, 12, 1, 6)).transpose();
-                    
-                    des_x = (t_p * coef_x)(0,0);
-                    des_y = (t_p * coef_y)(0,0);
-                    des_z = (t_p * coef_z)(0,0);
+                        double tt = dT - uav_t(i - 1);
 
-                    des_vx = (t_v * coef_x)(0,0);
-                    des_vy = (t_v * coef_y)(0,0);
-                    des_vz = (t_v * coef_z)(0,0);
+                        Matrix<double, 1, 6> t_p;
+                        t_p << 1, tt, pow(tt, 2), pow(tt, 3), pow(tt, 4), pow(tt, 5);
+                        Matrix<double, 1, 6> t_v;
+                        t_v << 0, 1, 2 * tt, 3 * pow(tt, 2), 4 * pow(tt, 3), 5 * pow(tt, 4);
+                        Matrix<double, 1, 6> t_a;
+                        t_a << 0, 0, 2, 6 * tt, 12 * pow(tt,2), 20*pow(tt,3);
+                                
+                        VectorXd coef_x;
+                        VectorXd coef_y;
+                        VectorXd coef_z;
+                        
+                        coef_x = (uav_coef.block(i-1, 0, 1, 6)).transpose();
+                        coef_y = (uav_coef.block(i-1, 6, 1, 6)).transpose();
+                        coef_z = (uav_coef.block(i-1, 12, 1, 6)).transpose();
+                        
+                        des_x = (t_p * coef_x)(0,0);
+                        des_y = (t_p * coef_y)(0,0);
+                        des_z = (t_p * coef_z)(0,0);
 
-			    	des_ax = (t_a * coef_x)(0,0);
-			    	des_ay = (t_a * coef_y)(0,0);
-			    	des_az = (t_a * coef_z)(0,0);
+                        des_vx = (t_v * coef_x)(0,0);
+                        des_vy = (t_v * coef_y)(0,0);
+                        des_vz = (t_v * coef_z)(0,0);
 
-			    	if(change_yaw) des_yaw = atan2(des_vy, des_vx);
+                        des_ax = (t_a * coef_x)(0,0);
+                        des_ay = (t_a * coef_y)(0,0);
+                        des_az = (t_a * coef_z)(0,0);
 
-			    	while(des_yaw > M_PI) des_yaw -= 2*M_PI;
-			    	while(des_yaw < -M_PI) des_yaw += 2*M_PI;
-			    	//cout<<"des_yaw:"<<des_yaw<<endl<<endl;                    
-                    traj_ok= true;
-                    
-                    break;
+                        if(follow_yaw){
+                            des_yaw = pow(des_vx, 2) + pow(des_vy, 2) > 0.01 ? atan2(des_vy, des_vx) : last_yaw_cmd;
+                        }
+                        else{
+                            des_yaw = hover_yaw;
+                        }
+
+                        while(des_yaw > M_PI) des_yaw -= 2*M_PI;
+                        while(des_yaw < -M_PI) des_yaw += 2*M_PI;
+                        //cout<<"des_yaw:"<<des_yaw<<endl<<endl;                    
+                        traj_ok= true;
+                        
+                        break;
+                    }
                 }
             }
+
+            last_yaw_cmd = des_yaw;
                 
             quadrotor_msgs::PositionCommand position_cmd;
             position_cmd.header.stamp    = msg.header.stamp;
@@ -266,17 +288,17 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
 
 			}
             else{
-                position_cmd.position.x      = msg.pose.pose.position.x;
-                position_cmd.position.y      = msg.pose.pose.position.y;
-                position_cmd.position.z      = msg.pose.pose.position.z;
+                position_cmd.position.x      = des_x;
+                position_cmd.position.y      = des_y;
+                position_cmd.position.z      = des_z;
                 position_cmd.velocity.x      = 0.0;
                 position_cmd.velocity.y      = 0.0;
                 position_cmd.velocity.z      = 0.0;
                 position_cmd.acceleration.x  = 0.0;
                 position_cmd.acceleration.y  = 0.0;
                 position_cmd.acceleration.z  = 0.0;
-                position_cmd.yaw             = uav_state(9);
-                position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_EMPTY;
+                position_cmd.yaw             = des_yaw;
+                position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_COMPLETED;
                 position_cmd.trajectory_id   = traj_id_send;
             }
                 
@@ -308,62 +330,77 @@ void trigger_callback( const geometry_msgs::PoseStamped::ConstPtr& trigger_msg )
         traj_id_send= traj_id_send + 1;//trigger_msg->header.seq + 1;
         is_traj    = true;
 
+        hover_yaw = uav_state(9);
+        last_yaw_cmd = hover_yaw;
+
         geometry_msgs::PoseArray pa;
         pa.header.stamp = trigger_msg->header.stamp;
 
         geometry_msgs::Pose pose_temp;
 
 
-        pose_temp.position.x = 1.0;
-        pose_temp.position.y = 1.0;
-        pose_temp.position.z = 0.8;
+        pose_temp.position.x = uav_state(0) + 1.0;
+        pose_temp.position.y = uav_state(1) + 1.0;
+        pose_temp.position.z = uav_state(2) - 0.2;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = 0.0;
-        pose_temp.position.y = 2.0;
-        pose_temp.position.z = 1.0;
+        pose_temp.position.x = uav_state(0) + 0.0;
+        pose_temp.position.y = uav_state(1) + 2.0;
+        pose_temp.position.z = uav_state(2) + 0.0;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = -1.0;
-        pose_temp.position.y = 1.0;
-        pose_temp.position.z = 0.9;
+        pose_temp.position.x = uav_state(0) - 1.0;
+        pose_temp.position.y = uav_state(1) + 1.0;
+        pose_temp.position.z = uav_state(2) + 0.1;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = 0.0;
-        pose_temp.position.y = 0.0;
-        pose_temp.position.z = 1.0;
+        pose_temp.position.x = uav_state(0) + 0.0;
+        pose_temp.position.y = uav_state(1) + 0.0;
+        pose_temp.position.z = uav_state(2) + 0.0;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = 1.0;
-        pose_temp.position.y = 1.0;
-        pose_temp.position.z = 0.8;
+        pose_temp.position.x = uav_state(0) + 1.0;
+        pose_temp.position.y = uav_state(1) + 1.0;
+        pose_temp.position.z = uav_state(2) - 0.2;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = 0.0;
-        pose_temp.position.y = 2.0;
-        pose_temp.position.z = 1.0;
+        pose_temp.position.x = uav_state(0) + 0.0;
+        pose_temp.position.y = uav_state(1) + 2.0;
+        pose_temp.position.z = uav_state(2) + 0.0;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = -1.0;
-        pose_temp.position.y = 1.0;
-        pose_temp.position.z = 0.9;
+        pose_temp.position.x = uav_state(0) - 1.0;
+        pose_temp.position.y = uav_state(1) + 1.0;
+        pose_temp.position.z = uav_state(2) + 0.1;
         pa.poses.push_back(pose_temp);
 
-        pose_temp.position.x = 0.0;
-        pose_temp.position.y = 0.0;
-        pose_temp.position.z = 1.0;
+        pose_temp.position.x = uav_state(0) + 0.0;
+        pose_temp.position.y = uav_state(1) + 0.0;
+        pose_temp.position.z = uav_state(2) + 0.0;
         pa.poses.push_back(pose_temp);
 
+        end_pos.x() = pose_temp.position.x;
+        end_pos.y() = pose_temp.position.y;
+        end_pos.z() = pose_temp.position.z;
 
         generate_traj(pa);
+
+        cout<<"-----------------"<<endl;
+		ROS_WARN("traj start!");
+        cout<<"start position:\n"<< uav_state.head(3).transpose()<<"\n mean speed: "<<mean_speed<<"\n total time: "<<uav_t.tail(1)(0) - uav_t.head(1)(0)<<endl;
+		cout<<"follow yaw: "<<follow_yaw<<endl;
     }
 }
 
 int main(int argc, char *argv[]){
-	ros::init(argc, argv, "traj_generator");
+	ros::init(argc, argv, "traj_test");
 	ros::NodeHandle nh;
+
+    nh.param("traj_test/follow_yaw", follow_yaw, false);
+    nh.param("traj_test/mean_speed", mean_speed, 1.0);
+
     //uav_waypoints_sub = nh.subscribe("/position_cmd_arrays", 10,uav_waypoints_call_back);
-	uav_pos_sub = nh.subscribe("/vins_estimator/imu_propagate", 10,uav_pos_call_back);
+	uav_pos_sub = nh.subscribe("/vins_multi_rgbd/imu_propagate", 10, uav_pos_call_back);
 	trigger_sub = nh.subscribe( "/traj_start_trigger", 100, trigger_callback);
 	position_cmd_pub = nh.advertise<quadrotor_msgs::PositionCommand>("/position_cmd",1);
     current_pose_pub = nh.advertise<quadrotor_msgs::PositionCommand>("/current_pose",1);

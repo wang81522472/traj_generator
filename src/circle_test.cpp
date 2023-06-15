@@ -81,7 +81,7 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
 			while(des_yaw < -M_PI) des_yaw += (2*M_PI);
 		    }
 		    else{
-		    	des_yaw = 0.0;
+		    	des_yaw = hover_yaw;
 		    }
 
 		    if(move_z){
@@ -107,8 +107,6 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
 	            position_cmd.yaw             = des_yaw;
 	            position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_READY;
 	            position_cmd.trajectory_id = traj_id_send;
-
-				position_cmd_pub.publish( position_cmd );
         	}
         	else{
         		position_cmd.position.x      = des_x;
@@ -122,8 +120,12 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
 	            position_cmd.acceleration.z  = 0;
 	            position_cmd.yaw             = des_yaw;
 	            position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_COMPLETED;
-	            position_cmd.trajectory_id = traj_id_send;       		
+	            position_cmd.trajectory_id = traj_id_send;   
+				
+				is_traj = false;    		
         	}
+
+			position_cmd_pub.publish( position_cmd );
                 
 
             position_cmd.position.x      = msg.pose.pose.position.x;
