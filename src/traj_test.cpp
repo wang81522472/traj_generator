@@ -300,6 +300,7 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
                 position_cmd.yaw             = des_yaw;
                 position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_COMPLETED;
                 position_cmd.trajectory_id   = traj_id_send;
+		ROS_WARN("traj finish!");
             }
                 
             position_cmd_pub.publish( position_cmd );
@@ -341,7 +342,7 @@ void trigger_callback( const geometry_msgs::PoseStamped::ConstPtr& trigger_msg )
 
         pose_temp.position.x = uav_state(0) + 1.0;
         pose_temp.position.y = uav_state(1) + 1.0;
-        pose_temp.position.z = uav_state(2) - 0.2;
+        pose_temp.position.z = uav_state(2) - 0.3;
         pa.poses.push_back(pose_temp);
 
         pose_temp.position.x = uav_state(0) + 0.0;
@@ -351,7 +352,7 @@ void trigger_callback( const geometry_msgs::PoseStamped::ConstPtr& trigger_msg )
 
         pose_temp.position.x = uav_state(0) - 1.0;
         pose_temp.position.y = uav_state(1) + 1.0;
-        pose_temp.position.z = uav_state(2) + 0.1;
+        pose_temp.position.z = uav_state(2) + 0.2;
         pa.poses.push_back(pose_temp);
 
         pose_temp.position.x = uav_state(0) + 0.0;
@@ -371,7 +372,7 @@ void trigger_callback( const geometry_msgs::PoseStamped::ConstPtr& trigger_msg )
 
         pose_temp.position.x = uav_state(0) - 1.0;
         pose_temp.position.y = uav_state(1) + 1.0;
-        pose_temp.position.z = uav_state(2) + 0.1;
+        pose_temp.position.z = uav_state(2) + 0.3;
         pa.poses.push_back(pose_temp);
 
         pose_temp.position.x = uav_state(0) + 0.0;
