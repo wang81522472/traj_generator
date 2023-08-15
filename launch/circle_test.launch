@@ -9,6 +9,8 @@
     <param name="follow_yaw" type="bool" value="false"/>
     <param name="move_z" type="bool" value="true"/>
     <param name="z_diff" type="double" value="0.3"/>
+
+    <remap from="~odom" to="/pos_vel_mocap/odom_TA" />
   </node>
 
 </launch>

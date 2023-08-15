@@ -395,13 +395,13 @@ void trigger_callback( const geometry_msgs::PoseStamped::ConstPtr& trigger_msg )
 
 int main(int argc, char *argv[]){
 	ros::init(argc, argv, "traj_test");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
-    nh.param("traj_test/follow_yaw", follow_yaw, false);
-    nh.param("traj_test/mean_speed", mean_speed, 1.0);
+    nh.param("follow_yaw", follow_yaw, false);
+    nh.param("mean_speed", mean_speed, 1.0);
 
     //uav_waypoints_sub = nh.subscribe("/position_cmd_arrays", 10,uav_waypoints_call_back);
-	uav_pos_sub = nh.subscribe("/vins_multi_rgbd/imu_propagate", 10, uav_pos_call_back);
+	uav_pos_sub = nh.subscribe("odom", 10, uav_pos_call_back);
 	trigger_sub = nh.subscribe( "/traj_start_trigger", 100, trigger_callback);
 	position_cmd_pub = nh.advertise<quadrotor_msgs::PositionCommand>("/position_cmd",1);
     current_pose_pub = nh.advertise<quadrotor_msgs::PositionCommand>("/current_pose",1);
