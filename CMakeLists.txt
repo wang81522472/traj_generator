@@ -44,3 +44,6 @@ target_link_libraries(line_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${EIGEN3_
 
 add_executable(traj_test src/traj_test.cpp)
 target_link_libraries(traj_test trajectory_generator_waypoint ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${EIGEN3_INCLUDE_DIR})
+
+add_executable(freq_scan src/freq_scan.cpp)
+target_link_libraries(freq_scan ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${EIGEN3_INCLUDE_DIR})
