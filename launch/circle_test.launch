@@ -11,8 +11,8 @@
     <param name="z_diff" type="double" value="0.3"/>
 
     <!-- <remap from="~odom" to="/pos_vel_mocap/odom_TA" /> -->
-    <!-- <remap from="~odom" to="/vins_multi_rgbd/imu_propagate" /> -->
-    <remap from="~odom" to="/ekf/ekf_odom" />
+    <remap from="~odom" to="/vins_multi_rgbd/imu_propagate" />
+    <!-- <remap from="~odom" to="/ekf/ekf_odom" /> -->
 
   </node>
 

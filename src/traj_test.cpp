@@ -347,143 +347,143 @@ void uav_pos_call_back(const nav_msgs::Odometry& msg){
 	if(traj_start_time< 0 && is_init) return;
 	
 	if(is_init){
-		// if(is_traj) {
-        //     double dT = msg.header.stamp.toSec();
+		if(is_traj) {
+            double dT = msg.header.stamp.toSec();
             
-        //     double des_x = 0;
-        //     double des_y = 0;
-        //     double des_z = 0;
+            double des_x = 0;
+            double des_y = 0;
+            double des_z = 0;
 
-        //     double des_vx = 0;
-        //     double des_vy = 0;
-        //     double des_vz = 0;
+            double des_vx = 0;
+            double des_vy = 0;
+            double des_vz = 0;
 
-		//     double des_ax = 0;
-		//     double des_ay = 0;
-		//     double des_az = 0;
+		    double des_ax = 0;
+		    double des_ay = 0;
+		    double des_az = 0;
 
-		//     double des_yaw = 0;
+		    double des_yaw = 0;
 
-        //     bool traj_ok=false;
+            bool traj_ok=false;
 
-        //     if(dT < uav_t(0)){
-        //         ROS_ERROR("time before traj!");
-        //         return;
-        //     }
-        //     else if(dT >= uav_t(uav_t.rows()-1)){
+            if(dT < uav_t(0)){
+                ROS_ERROR("time before traj!");
+                return;
+            }
+            else if(dT >= uav_t(uav_t.rows()-1)){
                 
-        //         des_x = end_pos.x();
-        //         des_y = end_pos.y();
-        //         des_z = end_pos.z();
-        //         des_yaw = last_yaw_cmd;
+                des_x = end_pos.x();
+                des_y = end_pos.y();
+                des_z = end_pos.z();
+                des_yaw = last_yaw_cmd;
 
-        //         traj_ok = false;
-        //         is_traj = false;
-        //     }            
-        //     else{
-        //         for (int i = 1; i < uav_t.rows(); i++) {
-        //             if (dT < uav_t(i)) {
+                traj_ok = false;
+                is_traj = false;
+            }            
+            else{
+                for (int i = 1; i < uav_t.rows(); i++) {
+                    if (dT < uav_t(i)) {
 
-        //                 double tt = dT - uav_t(i - 1);
+                        double tt = dT - uav_t(i - 1);
 
-        //                 Matrix<double, 1, 6> t_p;
-        //                 t_p << 1, tt, pow(tt, 2), pow(tt, 3), pow(tt, 4), pow(tt, 5);
-        //                 Matrix<double, 1, 6> t_v;
-        //                 t_v << 0, 1, 2 * tt, 3 * pow(tt, 2), 4 * pow(tt, 3), 5 * pow(tt, 4);
-        //                 Matrix<double, 1, 6> t_a;
-        //                 t_a << 0, 0, 2, 6 * tt, 12 * pow(tt,2), 20*pow(tt,3);
+                        Matrix<double, 1, 6> t_p;
+                        t_p << 1, tt, pow(tt, 2), pow(tt, 3), pow(tt, 4), pow(tt, 5);
+                        Matrix<double, 1, 6> t_v;
+                        t_v << 0, 1, 2 * tt, 3 * pow(tt, 2), 4 * pow(tt, 3), 5 * pow(tt, 4);
+                        Matrix<double, 1, 6> t_a;
+                        t_a << 0, 0, 2, 6 * tt, 12 * pow(tt,2), 20*pow(tt,3);
                                 
-        //                 VectorXd coef_x;
-        //                 VectorXd coef_y;
-        //                 VectorXd coef_z;
+                        VectorXd coef_x;
+                        VectorXd coef_y;
+                        VectorXd coef_z;
                         
-        //                 coef_x = (uav_coef.block(i-1, 0, 1, 6)).transpose();
-        //                 coef_y = (uav_coef.block(i-1, 6, 1, 6)).transpose();
-        //                 coef_z = (uav_coef.block(i-1, 12, 1, 6)).transpose();
+                        coef_x = (uav_coef.block(i-1, 0, 1, 6)).transpose();
+                        coef_y = (uav_coef.block(i-1, 6, 1, 6)).transpose();
+                        coef_z = (uav_coef.block(i-1, 12, 1, 6)).transpose();
                         
-        //                 des_x = (t_p * coef_x)(0,0);
-        //                 des_y = (t_p * coef_y)(0,0);
-        //                 des_z = (t_p * coef_z)(0,0);
+                        des_x = (t_p * coef_x)(0,0);
+                        des_y = (t_p * coef_y)(0,0);
+                        des_z = (t_p * coef_z)(0,0);
 
-        //                 des_vx = (t_v * coef_x)(0,0);
-        //                 des_vy = (t_v * coef_y)(0,0);
-        //                 des_vz = (t_v * coef_z)(0,0);
+                        des_vx = (t_v * coef_x)(0,0);
+                        des_vy = (t_v * coef_y)(0,0);
+                        des_vz = (t_v * coef_z)(0,0);
 
-        //                 des_ax = (t_a * coef_x)(0,0);
-        //                 des_ay = (t_a * coef_y)(0,0);
-        //                 des_az = (t_a * coef_z)(0,0);
+                        des_ax = (t_a * coef_x)(0,0);
+                        des_ay = (t_a * coef_y)(0,0);
+                        des_az = (t_a * coef_z)(0,0);
 
-        //                 if(follow_yaw){
-        //                     des_yaw = pow(des_vx, 2) + pow(des_vy, 2) > 0.01 ? atan2(des_vy, des_vx) : last_yaw_cmd;
-        //                 }
-        //                 else{
-        //                     des_yaw = hover_yaw;
-        //                 }
+                        if(follow_yaw){
+                            des_yaw = pow(des_vx, 2) + pow(des_vy, 2) > 0.01 ? atan2(des_vy, des_vx) : last_yaw_cmd;
+                        }
+                        else{
+                            des_yaw = hover_yaw;
+                        }
 
-        //                 while(des_yaw > M_PI) des_yaw -= 2*M_PI;
-        //                 while(des_yaw < -M_PI) des_yaw += 2*M_PI;
-        //                 //cout<<"des_yaw:"<<des_yaw<<endl<<endl;                    
-        //                 traj_ok= true;
+                        while(des_yaw > M_PI) des_yaw -= 2*M_PI;
+                        while(des_yaw < -M_PI) des_yaw += 2*M_PI;
+                        //cout<<"des_yaw:"<<des_yaw<<endl<<endl;                    
+                        traj_ok= true;
                         
-        //                 break;
-        //             }
-        //         }
-        //     }
+                        break;
+                    }
+                }
+            }
 
-        //     last_yaw_cmd = des_yaw;
+            last_yaw_cmd = des_yaw;
                 
-        //     quadrotor_msgs::PositionCommand position_cmd;
-        //     position_cmd.header.stamp    = msg.header.stamp;
-        //     position_cmd.header.frame_id = "world";
+            quadrotor_msgs::PositionCommand position_cmd;
+            position_cmd.header.stamp    = msg.header.stamp;
+            position_cmd.header.frame_id = "world";
                     
-        //     if(traj_ok){
+            if(traj_ok){
 
-        //     	position_cmd.position.x      = des_x;
-        //         position_cmd.position.y      = des_y;
-        //         position_cmd.position.z      = des_z;
-        //         position_cmd.velocity.x      = des_vx;
-        //         position_cmd.velocity.y      = des_vy;
-        //         position_cmd.velocity.z      = des_vz;
-        //         position_cmd.acceleration.x  = des_ax;
-        //         position_cmd.acceleration.y  = des_ay;
-        //         position_cmd.acceleration.z  = des_az;
-        //         position_cmd.yaw             = des_yaw;//(des_vx < follow_yaw_speed_limit && des_vy < follow_yaw_speed_limit) ? uav_state(9) : des_yaw;
-        //         position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_READY;
-        //         position_cmd.trajectory_id = traj_id_send;
+            	position_cmd.position.x      = des_x;
+                position_cmd.position.y      = des_y;
+                position_cmd.position.z      = des_z;
+                position_cmd.velocity.x      = des_vx;
+                position_cmd.velocity.y      = des_vy;
+                position_cmd.velocity.z      = des_vz;
+                position_cmd.acceleration.x  = des_ax;
+                position_cmd.acceleration.y  = des_ay;
+                position_cmd.acceleration.z  = des_az;
+                position_cmd.yaw             = des_yaw;//(des_vx < follow_yaw_speed_limit && des_vy < follow_yaw_speed_limit) ? uav_state(9) : des_yaw;
+                position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_READY;
+                position_cmd.trajectory_id = traj_id_send;
 
-		// 	}
-        //     else{
-        //         position_cmd.position.x      = des_x;
-        //         position_cmd.position.y      = des_y;
-        //         position_cmd.position.z      = des_z;
-        //         position_cmd.velocity.x      = 0.0;
-        //         position_cmd.velocity.y      = 0.0;
-        //         position_cmd.velocity.z      = 0.0;
-        //         position_cmd.acceleration.x  = 0.0;
-        //         position_cmd.acceleration.y  = 0.0;
-        //         position_cmd.acceleration.z  = 0.0;
-        //         position_cmd.yaw             = des_yaw;
-        //         position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_COMPLETED;
-        //         position_cmd.trajectory_id   = traj_id_send;
-		// ROS_WARN("traj finish!");
-        //     }
+			}
+            else{
+                position_cmd.position.x      = des_x;
+                position_cmd.position.y      = des_y;
+                position_cmd.position.z      = des_z;
+                position_cmd.velocity.x      = 0.0;
+                position_cmd.velocity.y      = 0.0;
+                position_cmd.velocity.z      = 0.0;
+                position_cmd.acceleration.x  = 0.0;
+                position_cmd.acceleration.y  = 0.0;
+                position_cmd.acceleration.z  = 0.0;
+                position_cmd.yaw             = des_yaw;
+                position_cmd.trajectory_flag = position_cmd.TRAJECTORY_STATUS_COMPLETED;
+                position_cmd.trajectory_id   = traj_id_send;
+		ROS_WARN("traj finish!");
+            }
                 
-        //     position_cmd_pub.publish( position_cmd );
+            position_cmd_pub.publish( position_cmd );
 
 
-        //     position_cmd.position.x      = msg.pose.pose.position.x;
-        //     position_cmd.position.y      = msg.pose.pose.position.y;
-        //     position_cmd.position.z      = msg.pose.pose.position.z;
-        //     position_cmd.velocity.x      = msg.twist.twist.linear.x;
-        //     position_cmd.velocity.y      = msg.twist.twist.linear.y;
-        //     position_cmd.velocity.z      = msg.twist.twist.linear.z;
-        //     position_cmd.acceleration.x  = msg.twist.twist.angular.x;
-        //     position_cmd.acceleration.y  = msg.twist.twist.angular.y;
-        //     position_cmd.acceleration.z  = msg.twist.twist.angular.z;
-        //     position_cmd.yaw             = uav_state(9);
+            position_cmd.position.x      = msg.pose.pose.position.x;
+            position_cmd.position.y      = msg.pose.pose.position.y;
+            position_cmd.position.z      = msg.pose.pose.position.z;
+            position_cmd.velocity.x      = msg.twist.twist.linear.x;
+            position_cmd.velocity.y      = msg.twist.twist.linear.y;
+            position_cmd.velocity.z      = msg.twist.twist.linear.z;
+            position_cmd.acceleration.x  = msg.twist.twist.angular.x;
+            position_cmd.acceleration.y  = msg.twist.twist.angular.y;
+            position_cmd.acceleration.z  = msg.twist.twist.angular.z;
+            position_cmd.yaw             = uav_state(9);
 
-        //     current_pose_pub.publish( position_cmd );
-        // }
+            current_pose_pub.publish( position_cmd );
+        }
     }
     else{
         is_init = true;
@@ -506,7 +506,8 @@ void trigger_callback( const geometry_msgs::PoseStamped::ConstPtr& trigger_msg )
         hover_yaw = uav_state(9);
         last_yaw_cmd = hover_yaw;
 
-        hover_start_time = ros::Time::now() + ros::Duration(0.015);
+        // hover_start_time = ros::Time::now() + ros::Duration(0.015);
+        hover_start_time = ros::Time(uav_state(10)) + ros::Duration(0.015);
 
         geometry_msgs::PoseArray pa;
         pa.header.stamp = hover_start_time;
@@ -604,13 +605,13 @@ int main(int argc, char *argv[]){
     nh.param("mean_speed", mean_speed, 1.0);
 
     //uav_waypoints_sub = nh.subscribe("/position_cmd_arrays", 10,uav_waypoints_call_back);
-	uav_pos_sub = nh.subscribe("odom", 10, uav_pos_call_back);
+	uav_pos_sub = nh.subscribe("odom", 1, uav_pos_call_back, ros::TransportHints().tcpNoDelay());
 	trigger_sub = nh.subscribe( "/traj_start_trigger", 100, trigger_callback);
 	position_cmd_pub = nh.advertise<quadrotor_msgs::PositionCommand>("/position_cmd",1);
     current_pose_pub = nh.advertise<quadrotor_msgs::PositionCommand>("/current_pose",1);
 	traj_pub = nh.advertise<visualization_msgs::Marker>("traj_viz", 1);
 	
-    std::thread cmd_pub_thread(cmd_pub_loop);
+    // std::thread cmd_pub_thread(cmd_pub_loop);
 
 	ros::spin();
 	return 0;
